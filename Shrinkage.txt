@@ -1,0 +1,99 @@
+# We will use a data set from the ISLR package
+# First attach "ISLR"
+fix(Hitters)
+
+# Fix gives a pop-up editor for editing data files (be careful 
+# with big ones)
+names(Hitters)
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+
+# This tells us 59 records have NAs, so we are safe removing them
+Hitters=na.omit(Hitters)
+dim(Hitters)
+sum(is.na(Hitters))
+set.seed(1)
+
+# We will use the "glmnet" package
+# We need to feed glmnet the predictors and response variable 
+# separately
+x=model.matrix(Salary~.,Hitters)[,-1]
+y=Hitters$Salary
+
+# We create a sequence of lambdas to test
+grid=10^seq(10,-2,length=100)
+
+# We now do Ridge reqression for each lambda. Be sure attach the 
+# "glmnet" package first
+ridge.mod=glmnet(x,y,alpha=0,lambda=grid)
+dim(coef(ridge.mod))
+
+# Notice we set alpha = 0; this is the option for Ridge
+# Also, the glmnet scales the data automatically
+# The coef matrix has a row for each predictor (plus intercept)
+# and col for each lambda value
+names(ridge.mod)
+
+# We can access the lambda values, but the coeff we need to 
+# access separately
+ridge.mod$lambda [50]
+coef(ridge.mod)[,50]
+
+# The predict function allows us to calculate the coefficients
+# for lambdas that were not in our original grid
+# Here are the coefficients for lambda = 50 ...
+predict(ridge.mod,s=50,type="coefficients")[1:20,]
+
+# We would like to choose an optimal lambda - we'll demonstrate
+# a simple CV method here (K-fold can be used with more work).
+# The idea is to find the best lambda when we build a model
+# on the training set, and then use this lambda to estimate
+# the test MSE. We can then also use the entire dataset
+# and this optimal lambda when we build the final model. 
+
+set.seed(1)
+train=sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+ridge.mod=glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+
+# We need to find the optimal lambda - we can use CV
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=0)
+
+# The cv function does 10-fold CV by default
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+ridge.pred=predict(ridge.mod,s=bestlam,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+
+# Once we to CV find the best lambda, we can use all of the data
+# to build our model using this lambda ...
+ridge.model=glmnet(x,y,alpha=0)
+predict(ridge.model,type="coefficients",s=bestlam)[1:20,]
+
+# Note all coef are included, but some a weighted heavier than 
+# others.
+
+# Now we apply the Lasso - note all we do is change the alpha 
+# option
+lasso.mod =glmnet (x[train ,],y[train],alpha =1, lambda =grid)
+plot(lasso.mod)
+
+# Note that Lasso takes certain coeff to zero for large enough 
+# lambda.We'll do CV to find the best lambda again ...
+set.seed (1)
+cv.out =cv.glmnet (x[train ,],y[train],alpha =1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+lasso.pred=predict (lasso.mod,s=bestlam,newx=x[test,])
+mean(( lasso.pred -y.test)^2)
+
+# The MSE is similar to what we saw for Ridge
+# Let's find the coefficients ...
+out=glmnet (x,y,alpha =1, lambda =grid)
+lasso.coef=predict(out,type ="coefficients",s=bestlam )[1:20,]
+lasso.coef
+lasso.coef[lasso.coef!=0]
+

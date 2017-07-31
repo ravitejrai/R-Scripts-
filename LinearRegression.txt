@@ -1,0 +1,66 @@
+# First we read in the "spiritwt_data.csv" dataset
+colnames(spiritwt_data)=c("Temp","Dilution","Wght")
+attach(spiritwt_data)
+
+# We'll build a simple linear regression model first
+lr.model_0 = lm(Wght~Dilution)
+summary(lr.model_0)
+
+# Next we'll add in both terms
+lr.model_1 = lm(Wght~Temp+Dilution)
+summary(lr.model_1)
+
+# Much improved over single variable (R^2)
+plot(lr.model_1$fitted.values,lr.model_1$residuals)
+plot(Temp, lr.model_1$residuals)
+plot(Dilution,lr.model_1$residuals)
+
+# Looks like there is nonlinearity in the dilution variable
+lr.model_2 = lm(Wght~Temp+poly(Dilution,2))
+summary(lr.model_2)
+
+# All p-values small, good sign ...
+plot(Dilution,lr.model_2$residuals)
+
+# Still non-linear effect ...
+lr.model_4 = lm(Wght~Temp+poly(Dilution,4))
+summary(lr.model_4)
+plot(Dilution,lr.model_4$residuals)
+qqnorm(lr.model_4$residuals)
+qqline(lr.model_4$residuals)
+
+# It may be that the variance is not constant ...
+lr.model_5 = lm(Wght~Temp+poly(Dilution,5))
+summary(lr.model_5)
+plot(Dilution,lr.model_5$residuals)
+
+# Another way to introduce nonlinearity (gently) is with a
+# cross term.
+lr.model_cross = lm(Wght~Temp+Dilution+Temp*Dilution)
+summary(lr.model_cross)
+
+# The p-vlaue is too high, this term is probably not significant
+# There is probably no interaction between these two predictors
+
+# Next read in "Concrete_Data_Tab.txt", note this is tab 
+# delimited
+summary(Concrete_Data_Tab)
+lr.model.concrete=lm(compressivestrength~., data=Concrete_Data_Tab)
+summary(lr.model.concrete)
+
+# Here we can probably remove the Aggregate predictors
+# We can then check residuals ...
+myData = Concrete_Data_Tab
+myData$`Fine Aggregate`=NULL
+myData$CoarseAggregate=NULL
+attach(myData)
+lr.model.concrete=lm(compressivestrength~., data=myData)
+summary(lr.model.concrete)
+plot(lr.model.concrete$residuals~lr.model.concrete$fitted.values)
+qqnorm(lr.model.concrete$residuals)
+qqline(lr.model.concrete$residuals)
+
+# Looks like a good fit, even though R^2 i a bit high.
+plot(lr.model.concrete$residuals~Cement)
+
+# Next we look at Car Worth data ...
